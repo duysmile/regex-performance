@@ -1,0 +1,23 @@
+{
+  "name": "regex-performance",
+  "version": "1.0.0",
+  "description": "Some tests about performance of regular expressions.",
+  "main": "regex.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duysmile/regex-performance.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/duysmile/regex-performance/issues"
+  },
+  "homepage": "https://github.com/duysmile/regex-performance#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

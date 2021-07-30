@@ -33,9 +33,9 @@ Cùng nghía qua ví dụ dưới đây nhé 😉
 ...
 // Một định nghĩa router trong express để kiểm tra chuỗi gửi lên có phải là một biểu thức toán học hay không
 app.post('/check-operations', (req, res) => {
-	const { operation } = req.body;
+	const { operation } = req.body; 
 	const regex = /(\d+[+-]?)+=/gm;
-
+	
 	console.time("regex run");
     const matchData = regex.test(operation);
     console.timeEnd("regex run");
@@ -56,7 +56,7 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"operation":"1+1="}' \
   http://localhost:3000/check-operations
-
+  
 // regex run: 0.009ms
 // true
 ```
@@ -69,7 +69,7 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"operation":"11113333"}' \
   http://localhost:3000/check-operations
-
+  
 // regex run: 0.013ms
 // not found
 ```
@@ -81,7 +81,7 @@ curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"operation":"1111111111111111111111113333333"}' \
   http://localhost:3000/check-operations
-
+  
 // regex run: 21828.734ms
 // not found
 ```
@@ -99,11 +99,11 @@ Cùng xem qua một chút về cách nó hoạt động nhé.
 Chúng ta sẽ dùng một regex `(a+)+b` để so khớp với chuỗi `aaaaab` và không khớp với chuỗi `aaaaaa` và `aaaaaa1b`
 Có thể thấy là regex của chúng ta rất bình thường, ở đây có thể thấy như vòng lặp lồng nhau `(a+)+`, và theo kinh nghiệm thì chúng chỉ có độ phức tạp cùng lắm là `O(n ^ 2)`, chẳng đáng ngại lắm nếu chuỗi của ta không quá dài. Nhưng rồi mình đã sai, sai quá sai.
 
-Nếu regex trên áp dụng cho chuỗi so khớp, `aaaaaaaaaaab`, sẽ không có chỉ khó khăn cả, chỉ mất có 6 bước.
+Nếu regex trên áp dụng cho chuỗi so khớp, `aaaaaaaaaaab`, sẽ không có chỉ khó khăn cả, chỉ mất có 6 bước. 
 - Đầu tiên `a+` sẽ theo thuộc tính greedy của nó, match tới hết chuỗi kí tự `a`
 - Sau đó đến `+`, kiểm tra tiếp theo là kí tự `a`, không khớp
 - Engine sẽ lùi lại 1 kí tự
-- Sau đó kiểm tra lại `+` khớp với `a`.
+- Sau đó kiểm tra lại `+` khớp với `a`. 
 - Và cuối cùng là `b` khớp với kí tự `b` còn lại trong chuỗi, trả kết quả là chuỗi so khớp.
 
 Có thể xem minh họa ở https://regex101.com/r/mesXn7/1 (chọn regex debugger trên sidebar)
@@ -121,6 +121,8 @@ Ví dụ cách tính số steps như sau:
 - Với `aaaa1b` thì cần 39 = 39 * 2 + 5 + 3 bước qua `a`, 6 bước `1b` -> 92 bước
 - ...
 
+![Regex matching performance](https://i.ibb.co/WvwQNXr/ezgif-1-06c533d57162.gif)
+
 Có thể thấy số bước phải thực hiện tăng theo cấp số nhân, trong trường hợp trên thì ta có công thức tính số bước là:
 
 > S[n] = (S[n - 1] - 6) * 2 + n + 11 với S[0] = 11
@@ -131,4 +133,24 @@ Vì vậy chỉ cần chuỗi càng dài thì regex pattern này có thể là s
 
 Qua đây chúng ta có thể thấy rằng regex cũng không thần thánh như thế, và sử dụng nó không đúng cách cũng rất nguy hiểm, những lỗi này sẽ rất khó để phát hiện nhưng một khi nó xảy ra thì hậu quả sẽ rất nghiêm trọng.
 
+Trong trường hợp muốn sử dụng những pattern trên mà không muốn xảy ra hiện tượng Catastrophic backtracking thì có những cách sau:
+- Possesive quantifiers(`.++`, `.*+`): một khi đoạn text nào đã được lấy thì sẽ không quay lui.
+- Atomic group(`(?>.+)`): khi đoạn text nào đã match vs atomic group thì khi engine thoát khỏi group sẽ bỏ qua tất cả vị trí backtracking bên trong group (chi tiết xem ở đây: https://www.regular-expressions.info/atomic.html)
+- Unrolling the loop: hữu hiệu với các engine không hỗ trợ 2 phương thức ở trên như Javascript. Ý tưởng là tách phần repetition thành một group mà chuỗi được match bởi group này sẽ không bị overlap trong lần lặp tiếp theo:
 
+Ví dụ: Một pattern sẽ bị catastrophic backtracking, dùng để tìm ra 1 chuỗi số mà phía trước và phía sau là khoảng trắng, bên trong có thể chứa dấu , để ngăn cách:
+- Cách bình thường: `(?<=\s)(\d+,?)+(?=\s)` (https://regex101.com/r/AKhGvQ/1)
+- Dùng phương pháp unrolling the loop: `(?<=\s)(-?\d+(,\d+)*)(?=\s)`(https://regex101.com/r/XxJ7r4/3)
+-> lúc này thì chúng ta đã tách phần bắt buộc `\d+` ra riêng, và mỗi lần lặp với một ranh giới rõ ràng là dấu `,`. Như vậy thì mỗi lần lặp lại sẽ bị neo tại dấu `,` và số lần backtracking chỉ bằng với độ dài của chuỗi. Mọi người có thể xem phần debug để hiểu rõ hơn.
+
+Engine Regex của JS không hỗ trợ `atomic group` cũng như `possesive quantifiers` nên nếu muốn tránh backtracking thì chỉ có thể dùng Unrolling the loop hoặc Look Ahead (https://instanceof.me/post/52245507631/regex-emulate-atomic-grouping-with-lookahead)
+
+Ngoài ra đối với Nodejs, có một thư viện có thể giúp hỗ trợ việc validate xem regex pattern có an toàn hay không, mọi người có thể xem qua tại https://github.com/substack/safe-regex.
+
+Chào mọi người, hẹn gặp lại ở những vấn đề trắc trở mà mình gặp tiếp theo nhé!
+
+Reference: 
+- https://medium0.com/textmaster-engineering/performance-of-regular-expressions-81371f569698
+- http://www.rexegg.com/regex-explosive-quantifiers.html#identifying
+- https://instanceof.me/post/52245507631/regex-emulate-atomic-grouping-with-lookahead
+- https://swtch.com/~rsc/regexp/regexp1.html
